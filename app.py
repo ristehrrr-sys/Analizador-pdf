@@ -52,6 +52,7 @@ if st.button("🚀 Iniciar Análisis"):
     else:
         with st.spinner("La IA está leyendo el artículo y armando la matriz... ⏳"):
             try:
+                # 1. Extraer el texto del PDF
                 lector = PdfReader(archivo)
                 texto = ""
                 for pagina in lector.pages:
@@ -63,9 +64,13 @@ if st.button("🚀 Iniciar Análisis"):
                     st.error("❌ No se pudo extraer texto. El PDF podría ser una imagen escaneada.")
                     st.stop()
 
+                # 2. Configurar la IA
                 genai.configure(api_key=api_key)
-                modelo = genai.GenerativeModel('gemini-1.5-flash')
                 
+                # Usamos el modelo más reciente y estable
+                modelo = genai.GenerativeModel('gemini-2.0-flash')
+                
+                # 3. Crear la orden para la IA
                 prompt = f"""
                 Actúa como un metodólogo de investigación experto. 
                 Lee el siguiente artículo científico y extrae la información para armar una Matriz de Consistencia.
@@ -84,6 +89,7 @@ if st.button("🚀 Iniciar Análisis"):
                 {texto[:15000]}
                 """
                 
+                # 4. Generar y mostrar el resultado
                 respuesta = modelo.generate_content(prompt)
                 
                 st.success("✅ ¡Análisis completado con éxito!")
