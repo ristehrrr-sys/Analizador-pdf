@@ -52,7 +52,9 @@ if st.button("🚀 Iniciar Análisis"):
 
                 api_key = st.secrets["GEMINI_API_KEY"]
                 genai.configure(api_key=api_key)
-                modelo = genai.GenerativeModel('gemini-3.8-flash')
+                
+                # --- EL CAMBIO ESTÁ AQUÍ (Modelo Lite) ---
+                modelo = genai.GenerativeModel('gemini-3.5-flash-lite')
                 
                 resultado_texto = ""
                 peticion_lower = peticion_usuario.lower()
@@ -102,7 +104,7 @@ if st.button("🚀 Iniciar Análisis"):
 
                 # --- LÓGICA 3: RESUMEN DE IDEAS CENTRALES (CON MUESTRA) ---
                 elif "resumen" in peticion_lower or "idea" in peticion_lower:
-                    st.info("📚 La IA está dividiendo el texto para extraer las ideas centrales y los datos metodológicos...")
+                    st.info("📚 La IA está dividiendo el texto para extraer las ideas centrales...")
                     tamano_bloque = 15000
                     bloques = [texto_completo[i:i+tamano_bloque] for i in range(0, len(texto_completo), tamano_bloque)]
                     ideas_parciales = []
@@ -116,7 +118,7 @@ if st.button("🚀 Iniciar Análisis"):
                     texto_unificado = "\n".join(ideas_parciales)
                     prompt_final = f"""
                     Une estas ideas en un solo resumen estructurado. 
-                    OBLIGATORIO: Debes incluir una sección de "Muestra" con el número de participantes si fue encontrado en el texto. Si no se menciona, escribe "La muestra no está explícita en el resumen extraído".
+                    OBLIGATORIO: Debes incluir una sección de "Muestra" con el número de participantes si fue encontrado. Si no se menciona, escribe "La muestra no está explícita".
                     
                     Ideas extraídas: 
                     {texto_unificado}
