@@ -53,7 +53,6 @@ if st.button("🚀 Iniciar Análisis"):
                 api_key = st.secrets["GEMINI_API_KEY"]
                 genai.configure(api_key=api_key)
                 
-                # --- EL CAMBIO ESTÁ AQUÍ (Modelo Lite) ---
                 modelo = genai.GenerativeModel('gemini-3.5-flash-lite')
                 
                 resultado_texto = ""
@@ -62,41 +61,42 @@ if st.button("🚀 Iniciar Análisis"):
                 # --- LÓGICA 1: BUSCAR AUTOR Y SU IDEA EN 15 PALABRAS ---
                 if any(palabra in peticion_lower for palabra in ["busca a", "autor", "quien es", "idea de", "piensa"]):
                     prompt = f"""
-                    Actúa como un investigador experto. 
-                    En el siguiente texto, busca información sobre la petición del usuario: "{peticion_usuario}".
+                    Act as an expert researcher. 
+                    Search the following text for information regarding the user's request: "{peticion_usuario}".
                     
-                    Tu respuesta debe tener ESTRICTAMENTE este formato:
-                    **Autor encontrado:** [Nombre del autor]
-                    **Idea Central:** [Resumen de su idea principal en 15 palabras o menos]
-                    **Cita del texto:** [Un fragmento corto del texto que respalde esa idea]
+                    Your response MUST strictly follow this format (translate the output to Spanish):
+                    **Autor encontrado:** [Author's name]
+                    **Idea Central:** [Summarize their main idea in 15 words or less]
+                    **Cita del texto:** [A short quote from the text supporting this idea]
                     
-                    Si no encuentras al autor, responde exactamente: "El autor no se menciona en el documento proporcionado".
+                    If the author is not found, respond exactly: "El autor no se menciona en el documento proporcionado".
                     
-                    Aquí está el texto:
+                    Text:
                     {texto_completo[:25000]}
                     """
                     respuesta = modelo.generate_content(prompt)
                     resultado_texto = respuesta.text
 
-                # --- LÓGICA 2: REDACTAR ANTECEDENTES EN APA 7 (CON MUESTRA) ---
+                # --- LÓGICA 2: REDACTAR ANTECEDENTES ESTRUCTURADOS ---
                 elif "antecedente" in peticion_lower:
                     prompt = f"""
-                    Actúa como un metodólogo experto en normas APA 7ma edición. 
-                    Lee el siguiente artículo científico y extrae los antecedentes de investigación.
+                    Act as an expert methodologist specialized in APA 7th edition. 
+                    Read the following scientific article and extract the research background (previous studies mentioned in the text).
                     
-                    Tu tarea es redactar cada antecedente como un párrafo académico de 150 a 200 palabras. 
-                    REGLA CRÍTICA: Si el estudio menciona la muestra (número de participantes, tipo de muestreo), DEBES incluirla obligatoriamente en la redacción.
+                    FOR EACH BACKGROUND STUDY FOUND, you must use STRICTLY the following structure (translate the output to Spanish):
                     
-                    Para cada autor o estudio, sigue esta estructura:
-                    1. Cita en formato APA 7 (ej. Apellido, Año).
-                    2. Objetivo del estudio.
-                    3. Breve metodología (incluyendo la muestra si está disponible).
-                    4. Resultados principales.
-                    5. Aporte a la investigación actual.
+                    ---
+                    **[Number]. [Author's Last Name], [Year]**
+                    *   **Muestra:** [Indicate the sample size or type. If not mentioned, write "No especificada".]
+                    *   **Objetivo:** [State the main objective in one sentence.]
+                    *   **Metodología:** [Briefly describe the methodology.]
+                    *   **Resultados:** [State the main finding in one sentence.]
+                    *   **Aporte:** [Explain why it is relevant to the current research.]
+                    ---
                     
-                    Si el documento no menciona antecedentes claros, redacta: "El documento no presenta una sección explícita de antecedentes".
+                    If the document does not mention clear backgrounds, write: "El documento no presenta una sección explícita de antecedentes".
                     
-                    Aquí está el texto del artículo:
+                    Text:
                     {texto_completo[:20000]}
                     """
                     respuesta = modelo.generate_content(prompt)
@@ -110,17 +110,17 @@ if st.button("🚀 Iniciar Análisis"):
                     ideas_parciales = []
                     for i, bloque in enumerate(bloques[:3]): 
                         prompt_bloque = f"""
-                        Extrae las 3 ideas centrales más importantes de este fragmento y BUSCA EXPLÍCITAMENTE si se menciona la muestra (número de participantes). Sé muy conciso.
-                        Texto: {bloque}
+                        Extract the 3 most important central ideas from this text fragment and EXPLICITLY LOOK for the sample size (number of participants). Be very concise. Output in Spanish.
+                        Text: {bloque}
                         """
                         res = modelo.generate_content(prompt_bloque)
                         ideas_parciales.append(res.text)
                     texto_unificado = "\n".join(ideas_parciales)
                     prompt_final = f"""
-                    Une estas ideas en un solo resumen estructurado. 
-                    OBLIGATORIO: Debes incluir una sección de "Muestra" con el número de participantes si fue encontrado. Si no se menciona, escribe "La muestra no está explícita".
+                    Combine these ideas into a single structured summary in Spanish. 
+                    MANDATORY: You must include a "Muestra" section with the number of participants if found. If not mentioned, write "La muestra no está explícita".
                     
-                    Ideas extraídas: 
+                    Extracted ideas: 
                     {texto_unificado}
                     """
                     respuesta_final = modelo.generate_content(prompt_final)
@@ -129,24 +129,24 @@ if st.button("🚀 Iniciar Análisis"):
                 # --- LÓGICA 4: MATRIZ DE CONSISTENCIA ---
                 elif "matriz" in peticion_lower or "consistencia" in peticion_lower:
                     prompt = f"""
-                    Actúa como un metodólogo de investigación experto. 
-                    Lee el siguiente artículo científico y extrae la información para armar una Matriz de Consistencia.
+                    Act as an expert research methodologist. 
+                    Read the following scientific article and extract the information to build a Consistency Matrix (Matriz de Consistencia). Output in Spanish.
                     
-                    REGLAS ESTRICTAS DE EXTRACCIÓN:
-                    1. Si la información está en el texto, extráela de forma resumida y clara.
-                    2. Si la información NO está explícita, DEBES escribir exactamente: "⚠️ No se encuentra explícito en el documento".
-                    3. Para cada dato faltante, DEBES agregar un párrafo debajo llamado "💡 Alternativa de solución:".
+                    STRICT EXTRACTION RULES:
+                    1. If the information is in the text, extract it clearly and concisely.
+                    2. If the information is NOT explicit, you MUST write exactly: "⚠️ No se encuentra explícito en el documento".
+                    3. For each missing piece of information, you MUST add a paragraph below called "💡 Alternativa de solución:".
                     
-                    ESTRUCTURA DE SALIDA:
-                    **1. Problema Central:** [Texto o faltante + Alternativa]
-                    **2. Objetivos:** [Texto o faltante + Alternativa]
-                    **3. Hipótesis:** [Texto o faltante + Alternativa]
-                    **4. Variables:** [Texto o faltante + Alternativa]
-                    **5. Dimensiones:** [Texto o faltante + Alternativa]
-                    **6. Matriz de Consistencia (Tabla Markdown):**
-                    Crea una tabla con las columnas: Problema | Objetivos | Hipótesis | Variables | Dimensiones.
+                    OUTPUT STRUCTURE:
+                    **1. Problema Central:** [Extracted text or missing + Alternative]
+                    **2. Objetivos:** [Extracted text or missing + Alternative]
+                    **3. Hipótesis:** [Extracted text or missing + Alternative]
+                    **4. Variables:** [Extracted text or missing + Alternative]
+                    **5. Dimensiones:** [Extracted text or missing + Alternative]
+                    **6. Matriz de Consistencia (Markdown Table):**
+                    Create a table with columns: Problema | Objetivos | Hipótesis | Variables | Dimensiones.
                     
-                    Aquí está el texto:
+                    Text:
                     {texto_completo[:15000]}
                     """
                     respuesta = modelo.generate_content(prompt)
@@ -155,10 +155,10 @@ if st.button("🚀 Iniciar Análisis"):
                 # --- LÓGICA 5: OTRAS PREGUNTAS ---
                 else:
                     prompt = f"""
-                    Actúa como un experto en investigación. Responde de manera clara y concisa a la siguiente petición basándote en el texto:
-                    PETICIÓN: "{peticion_usuario}"
+                    Act as a research expert. Answer the following request clearly and concisely based on the text. Output in Spanish.
+                    REQUEST: "{peticion_usuario}"
                     
-                    Aquí está el texto:
+                    Text:
                     {texto_completo[:15000]}
                     """
                     respuesta = modelo.generate_content(prompt)
