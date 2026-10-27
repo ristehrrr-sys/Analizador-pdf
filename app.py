@@ -67,8 +67,8 @@ if st.button("🚀 Iniciar Análisis"):
                 # 2. Configurar la IA
                 genai.configure(api_key=api_key)
                 
-                # Usamos el modelo más reciente y estable
-                modelo = genai.GenerativeModel('gemini-2.0-flash')
+                # Usamos el modelo que Google recomendó en el error
+                modelo = genai.GenerativeModel('gemini-3.8-flash')
                 
                 # 3. Crear la orden para la IA
                 prompt = f"""
