@@ -21,47 +21,23 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. SISTEMA DE INICIAR SESIÓN
-# ==========================================
-if "autenticado" not in st.session_state:
-    st.session_state.autenticado = False
-
-if not st.session_state.autenticado:
-    st.title("🔒 Acceso Restringido")
-    st.write("Por favor, ingresa la contraseña para usar el Asistente de Artículos Científicos.")
-    
-    password = st.text_input("Contraseña:", type="password")
-    
-    if st.button("Iniciar Sesión"):
-        if password == "tesis2024": 
-            st.session_state.autenticado = True
-            st.rerun() 
-        else:
-            st.error("❌ Contraseña incorrecta")
-    
-    st.stop()
-
-# ==========================================
-# 3. APLICACIÓN PRINCIPAL
+# 2. APLICACIÓN PRINCIPAL (PÚBLICA)
 # ==========================================
 st.title("🔬 Asistente de Artículos Científicos")
 st.subheader("📊 Extrae la Matriz de Consistencia en segundos")
 st.write("Sube tu paper en PDF y la IA identificará automáticamente el problema central, la hipótesis, las variables y armará tu matriz.")
 
-with st.sidebar:
-    st.header("👤 Sesión")
-    if st.button("Cerrar Sesión"):
-        st.session_state.autenticado = False
-        st.rerun()
-
+# Subir el archivo
 archivo = st.file_uploader("📂 Sube tu archivo PDF aquí", type="pdf")
 
+# Botón de análisis
 if st.button("🚀 Iniciar Análisis"):
     if archivo is None:
         st.warning("⚠️ Por favor, sube un archivo PDF antes de iniciar el análisis.")
     else:
         with st.spinner("La IA está leyendo el artículo y armando la matriz... ⏳"):
             try:
+                # Extraer el texto del PDF
                 lector = PdfReader(archivo)
                 texto = ""
                 for pagina in lector.pages:
@@ -73,12 +49,13 @@ if st.button("🚀 Iniciar Análisis"):
                     st.error("❌ No se pudo extraer texto. El PDF podría ser una imagen escaneada.")
                     st.stop()
 
+                # Configurar la IA usando la clave segura de los Secrets
                 api_key = st.secrets["GEMINI_API_KEY"]
                 genai.configure(api_key=api_key)
                 
                 modelo = genai.GenerativeModel('gemini-3.8-flash')
                 
-                # NUEVO PROMPT MEJORADO CON VALIDACIÓN Y ALTERNATIVAS
+                # Prompt riguroso con validación y alternativas
                 prompt = f"""
                 Actúa como un metodólogo de investigación experto. 
                 Lee el siguiente artículo científico y extrae la información para armar una Matriz de Consistencia.
