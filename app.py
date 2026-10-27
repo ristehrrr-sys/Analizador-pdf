@@ -1,59 +1,101 @@
 import streamlit as st
-import re
-from collections import Counter
 from pypdf import PdfReader
+import google.generativeai as genai
 
 # Configuración de la página
-st.set_page_config(page_title="Analizador de PDF", page_icon="📄")
-st.title("📄 Analizador de PDFs")
-st.write("Sube tu documento y descubre cuáles son las palabras que más se repiten.")
+st.set_page_config(page_title="Analizador de Papers", page_icon="🔬")
 
-# Barra lateral
+# ==========================================
+# SISTEMA DE INICIAR SESIÓN
+# ==========================================
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+
+if not st.session_state.autenticado:
+    st.title("🔒 Acceso Restringido")
+    st.write("Por favor, ingresa la contraseña para usar el Analizador de Artículos Científicos.")
+    
+    password = st.text_input("Contraseña:", type="password")
+    
+    if st.button("Iniciar Sesión"):
+        if password == "tesis2024": # Puedes cambiar esta contraseña
+            st.session_state.autenticado = True
+            st.rerun()
+        else:
+            st.error("❌ Contraseña incorrecta")
+    
+    st.stop() # Detiene la app si no está logueado
+
+# ==========================================
+# APLICACIÓN PRINCIPAL
+# ==========================================
+st.title("🔬 Asistente de Artículos Científicos")
+st.write("Sube un paper en PDF y la IA extraerá el problema central, hipótesis y variables.")
+
+# Barra lateral para la API Key
 with st.sidebar:
-    st.header("⚙️ Opciones")
-    num_palabras = st.slider("¿Cuántas palabras quieres ver?", 5, 50, 10)
-    quitar_stopwords = st.checkbox("Ignorar palabras comunes (el, la, de...)", value=True)
+    st.header("🔑 Configuración")
+    api_key = st.text_input("Pega tu API Key de Google Gemini:", type="password")
+    st.markdown("[Obtén tu API Key gratis aquí](https://aistudio.google.com/app/apikey)")
+    
+    st.markdown("---")
+    if st.button("Cerrar Sesión"):
+        st.session_state.autenticado = False
+        st.rerun()
 
-# Lista de palabras comunes en español
-STOPWORDS = {"el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "al", "a", "en", "y", "o", "que", "es", "por", "para", "con", "se", "su", "sus", "lo", "como", "más", "pero", "le", "ya", "este", "sí", "porque", "esta", "entre", "cuando", "muy", "sin", "sobre", "también", "me", "hasta", "hay", "donde", "quien", "desde", "todo", "nos", "durante", "todos", "uno", "les", "ni", "contra", "otros", "ese", "eso", "ante", "ellos", "e", "esto", "mí", "antes", "algunos", "qué", "yo", "otro", "otras", "otra", "él", "tanto", "esa", "estos", "mucho", "quienes", "nada", "muchos", "cual", "poco", "ella", "estar", "estas", "algunas", "algo", "nosotros"}
+# Subir el PDF
+archivo = st.file_uploader("📂 Sube tu archivo PDF aquí", type="pdf")
 
-# Subir archivo
-archivo = st.file_uploader("Elige un archivo PDF", type="pdf")
+# Botón para iniciar el análisis
+if st.button("🚀 Iniciar Análisis"):
+    if not api_key:
+        st.warning("⚠️ Primero debes ingresar tu API Key en la barra lateral izquierda.")
+    elif archivo is None:
+        st.warning("⚠️ Por favor, sube un archivo PDF antes de iniciar el análisis.")
+    else:
+        with st.spinner("La IA está leyendo el artículo y armando la matriz... ⏳"):
+            try:
+                # 1. Extraer texto del PDF
+                lector = PdfReader(archivo)
+                texto = ""
+                for pagina in lector.pages:
+                    texto_pagina = pagina.extract_text()
+                    if texto_pagina:
+                        texto += texto_pagina + " "
+                
+                if not texto.strip():
+                    st.error("❌ No se pudo extraer texto. El PDF podría ser una imagen escaneada.")
+                    st.stop()
 
-if archivo is not None:
-    with st.spinner("Analizando el documento... ⏳"):
-        try:
-            lector = PdfReader(archivo)
-            texto_completo = ""
-            
-            for pagina in lector.pages:
-                texto = pagina.extract_text()
-                if texto:
-                    texto_completo += texto + " "
-            
-            if not texto_completo.strip():
-                st.warning("⚠️ El PDF no tiene texto extraíble. (¿Es una imagen escaneada?)")
-            else:
-                # Limpiar texto
-                palabras = re.findall(r'\b\w+\b', texto_completo.lower())
+                # 2. Configurar la IA (Gemini)
+                genai.configure(api_key=api_key)
+                modelo = genai.GenerativeModel('gemini-1.5-flash')
                 
-                if quitar_stopwords:
-                    palabras = [p for p in palabras if p not in STOPWORDS and len(p) > 2]
+                # 3. Crear el Prompt (La orden para la IA)
+                prompt = f"""
+                Actúa como un metodólogo de investigación experto. 
+                Lee el siguiente artículo científico y extrae la información para armar una Matriz de Consistencia.
                 
-                contador = Counter(palabras)
+                Tu respuesta debe tener este formato exacto:
+                **1. Problema Central:** (Redáctalo en una sola oración clara)
+                **2. Hipótesis:** (Si no está explícita, deduce una basada en el texto)
+                **3. Variables:**
+                - Variable Independiente (Causa):
+                - Variable Dependiente (Efecto):
                 
-                st.success(f"✅ ¡Análisis completado! Se encontraron {len(palabras)} palabras.")
+                **4. Matriz de Consistencia (en formato tabla):**
+                Crea una tabla con las columnas: Problema | Objetivos | Hipótesis | Variables | Dimensiones.
                 
-                # Mostrar tabla
-                st.subheader(f"Top {num_palabras} palabras:")
-                datos = [{"Palabra": p, "Apariciones": c} for p, c in contador.most_common(num_palabras)]
-                st.table(datos)
+                Aquí está el texto del artículo:
+                {texto[:15000]}
+                """
                 
-                # Mostrar gráfico
-                st.subheader("Gráfico de frecuencia:")
-                st.bar_chart({d["Palabra"]: d["Apariciones"] for d in datos})
+                # 4. Generar respuesta
+                respuesta = modelo.generate_content(prompt)
                 
-        except Exception as e:
-            st.error(f"❌ Error al leer el archivo: {e}")
-else:
-    st.info("👆 Por favor, sube un archivo PDF para comenzar.")
+                # 5. Mostrar resultado en pantalla
+                st.success("✅ ¡Análisis completado con éxito!")
+                st.markdown(respuesta.text)
+                
+            except Exception as e:
+                st.error(f"❌ Ocurrió un error al analizar: {e}")
