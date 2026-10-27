@@ -2,18 +2,33 @@ import streamlit as st
 from pypdf import PdfReader
 import google.generativeai as genai
 
-# Configuración de la página
-st.set_page_config(page_title="Analizador de Papers", page_icon="🔬")
+# ==========================================
+# 1. CONFIGURACIÓN Y DISEÑO DE LA PÁGINA
+# ==========================================
+st.set_page_config(
+    page_title="Asistente de Artículos Científicos", 
+    page_icon="🔬",
+    menu_items={'Get Help': None, 'Report a bug': None, 'About': None}
+)
+
+# CSS para ocultar el menú superior de Streamlit, el logo de GitHub y el pie de página
+st.markdown("""
+    <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+    </style>
+    """, unsafe_allow_html=True)
 
 # ==========================================
-# SISTEMA DE INICIAR SESIÓN
+# 2. SISTEMA DE INICIAR SESIÓN
 # ==========================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
     st.title("🔒 Acceso Restringido")
-    st.write("Por favor, ingresa la contraseña para usar el Analizador de Artículos Científicos.")
+    st.write("Por favor, ingresa la contraseña para usar el Asistente de Artículos Científicos.")
     
     password = st.text_input("Contraseña:", type="password")
     
@@ -24,20 +39,17 @@ if not st.session_state.autenticado:
         else:
             st.error("❌ Contraseña incorrecta")
     
-    st.stop() 
+    st.stop()
 
 # ==========================================
-# APLICACIÓN PRINCIPAL
+# 3. APLICACIÓN PRINCIPAL
 # ==========================================
 st.title("🔬 Asistente de Artículos Científicos")
-st.write("Sube un paper en PDF y la IA extraerá el problema central, hipótesis y variables.")
+st.subheader("📊 Extrae la Matriz de Consistencia en segundos")
+st.write("Sube tu paper en PDF y la IA identificará automáticamente el problema central, la hipótesis, las variables y armará tu matriz.")
 
 with st.sidebar:
-    st.header("🔑 Configuración")
-    api_key = st.text_input("Pega tu API Key de Google Gemini:", type="password")
-    st.markdown("[Obtén tu API Key gratis aquí](https://aistudio.google.com/app/apikey)")
-    
-    st.markdown("---")
+    st.header("👤 Sesión")
     if st.button("Cerrar Sesión"):
         st.session_state.autenticado = False
         st.rerun()
@@ -45,14 +57,11 @@ with st.sidebar:
 archivo = st.file_uploader("📂 Sube tu archivo PDF aquí", type="pdf")
 
 if st.button("🚀 Iniciar Análisis"):
-    if not api_key:
-        st.warning("⚠️ Primero debes ingresar tu API Key en la barra lateral izquierda.")
-    elif archivo is None:
+    if archivo is None:
         st.warning("⚠️ Por favor, sube un archivo PDF antes de iniciar el análisis.")
     else:
         with st.spinner("La IA está leyendo el artículo y armando la matriz... ⏳"):
             try:
-                # 1. Extraer el texto del PDF
                 lector = PdfReader(archivo)
                 texto = ""
                 for pagina in lector.pages:
@@ -64,36 +73,66 @@ if st.button("🚀 Iniciar Análisis"):
                     st.error("❌ No se pudo extraer texto. El PDF podría ser una imagen escaneada.")
                     st.stop()
 
-                # 2. Configurar la IA
+                api_key = st.secrets["GEMINI_API_KEY"]
                 genai.configure(api_key=api_key)
                 
-                # Usamos el modelo que Google recomendó en el error
                 modelo = genai.GenerativeModel('gemini-3.8-flash')
                 
-                # 3. Crear la orden para la IA
+                # NUEVO PROMPT MEJORADO CON VALIDACIÓN Y ALTERNATIVAS
                 prompt = f"""
                 Actúa como un metodólogo de investigación experto. 
                 Lee el siguiente artículo científico y extrae la información para armar una Matriz de Consistencia.
                 
-                Tu respuesta debe tener este formato exacto:
-                **1. Problema Central:** (Redáctalo en una sola oración clara)
-                **2. Hipótesis:** (Si no está explícita, deduce una basada en el texto)
-                **3. Variables:**
-                - Variable Independiente (Causa):
-                - Variable Dependiente (Efecto):
+                REGLAS ESTRICTAS DE EXTRACCIÓN:
+                1. Si la información solicitada está en el texto, extráela de forma resumida y clara.
+                2. Si la información NO está explícita o el artículo carece de ella, DEBES escribir exactamente la frase: "⚠️ No se encuentra explícito en el documento".
+                3. Para cada dato faltante, DEBES agregar un párrafo debajo llamado "💡 Alternativa de solución:" donde sugieras cómo el investigador podría formularlo o qué debería buscar.
                 
-                **4. Matriz de Consistencia (en formato tabla):**
-                Crea una tabla con las columnas: Problema | Objetivos | Hipótesis | Variables | Dimensiones.
+                ESTRUCTURA DE SALIDA:
+                
+                **1. Problema Central:**
+                [Texto extraído o mensaje de faltante + Alternativa de solución]
+                
+                **2. Objetivos (General y Específicos):**
+                [Texto extraído o mensaje de faltante + Alternativa de solución]
+                
+                **3. Hipótesis:**
+                [Texto extraído o mensaje de faltante + Alternativa de solución]
+                
+                **4. Variables:**
+                - Variable Independiente (Causa): [Texto o mensaje]
+                - Variable Dependiente (Efecto): [Texto o mensaje]
+                
+                **5. Dimensiones e Indicadores:**
+                [Texto extraído o mensaje de faltante + Alternativa de solución]
+                
+                **6. Matriz de Consistencia (Resumen final en tabla):**
+                Crea una tabla en formato Markdown con las columnas: Problema | Objetivos | Hipótesis | Variables | Dimensiones. Si alguna celda falta, pon "No hallado en el texto".
                 
                 Aquí está el texto del artículo:
                 {texto[:15000]}
                 """
                 
-                # 4. Generar y mostrar el resultado
                 respuesta = modelo.generate_content(prompt)
+                resultado_texto = respuesta.text
                 
                 st.success("✅ ¡Análisis completado con éxito!")
-                st.markdown(respuesta.text)
+                st.markdown(resultado_texto)
+                
+                # --- BOTÓN DE DESCARGA ---
+                st.markdown("---")
+                st.subheader("📥 Descargar Resultados")
+                st.write("Descarga el análisis para revisar las alternativas de solución y la matriz.")
+                
+                nombre_limpio = archivo.name.replace(".pdf", "")
+                
+                st.download_button(
+                    label="Descargar Matriz en formato de texto (.txt)",
+                    data=resultado_texto,
+                    file_name=f"Matriz_Consistencia_{nombre_limpio}.txt",
+                    mime="text/plain",
+                    type="primary"
+                )
                 
             except Exception as e:
                 st.error(f"❌ Ocurrió un error al analizar: {e}")
