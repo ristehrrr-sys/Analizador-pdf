@@ -18,13 +18,13 @@ if not st.session_state.autenticado:
     password = st.text_input("Contraseña:", type="password")
     
     if st.button("Iniciar Sesión"):
-        if password == "tesis2024": # Puedes cambiar esta contraseña
+        if password == "tesis2024": 
             st.session_state.autenticado = True
-            st.rerun()
+            st.rerun() 
         else:
             st.error("❌ Contraseña incorrecta")
     
-    st.stop() # Detiene la app si no está logueado
+    st.stop() 
 
 # ==========================================
 # APLICACIÓN PRINCIPAL
@@ -32,7 +32,6 @@ if not st.session_state.autenticado:
 st.title("🔬 Asistente de Artículos Científicos")
 st.write("Sube un paper en PDF y la IA extraerá el problema central, hipótesis y variables.")
 
-# Barra lateral para la API Key
 with st.sidebar:
     st.header("🔑 Configuración")
     api_key = st.text_input("Pega tu API Key de Google Gemini:", type="password")
@@ -43,10 +42,8 @@ with st.sidebar:
         st.session_state.autenticado = False
         st.rerun()
 
-# Subir el PDF
 archivo = st.file_uploader("📂 Sube tu archivo PDF aquí", type="pdf")
 
-# Botón para iniciar el análisis
 if st.button("🚀 Iniciar Análisis"):
     if not api_key:
         st.warning("⚠️ Primero debes ingresar tu API Key en la barra lateral izquierda.")
@@ -55,7 +52,6 @@ if st.button("🚀 Iniciar Análisis"):
     else:
         with st.spinner("La IA está leyendo el artículo y armando la matriz... ⏳"):
             try:
-                # 1. Extraer texto del PDF
                 lector = PdfReader(archivo)
                 texto = ""
                 for pagina in lector.pages:
@@ -67,11 +63,9 @@ if st.button("🚀 Iniciar Análisis"):
                     st.error("❌ No se pudo extraer texto. El PDF podría ser una imagen escaneada.")
                     st.stop()
 
-                # 2. Configurar la IA (Gemini)
                 genai.configure(api_key=api_key)
                 modelo = genai.GenerativeModel('gemini-1.5-flash')
                 
-                # 3. Crear el Prompt (La orden para la IA)
                 prompt = f"""
                 Actúa como un metodólogo de investigación experto. 
                 Lee el siguiente artículo científico y extrae la información para armar una Matriz de Consistencia.
@@ -90,10 +84,8 @@ if st.button("🚀 Iniciar Análisis"):
                 {texto[:15000]}
                 """
                 
-                # 4. Generar respuesta
                 respuesta = modelo.generate_content(prompt)
                 
-                # 5. Mostrar resultado en pantalla
                 st.success("✅ ¡Análisis completado con éxito!")
                 st.markdown(respuesta.text)
                 
